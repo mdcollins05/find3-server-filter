@@ -25,15 +25,27 @@ class Find3ServerFilter():
   @cherrypy.tools.json_in()
   def passive(self):
     input_json = cherrypy.request.json
-    original_count = len(input_json['s']['wifi'])
     filtered = dict(input_json)
-    for key, value in dict(filtered['s']['wifi']).items():
-      if key not in self.settings['allowlist']:
-        del filtered['s']['wifi'][key]
-    filtered_count = len(filtered['s']['wifi'])
-    removed_count = original_count - filtered_count
-    print("Starting entries: {}, Removed: {}, Forwarded: {}".format(original_count, removed_count, filtered_count))
-    if filtered_count > 0:
+    filtered_total = 0
+    for source in dict(filtered['s']).keys():
+      original_count = len(input_json['s'][source])
+      filtered_count = 0
+      for key, value in dict(filtered['s'][source]).items():
+        if source in self.settings['allowlist']:
+          if key not in self.settings['allowlist'][source]:
+            del filtered['s'][source][key]
+      filtered_count = len(filtered['s'][source])
+      filtered_total += len(filtered['s'][source])
+      removed_count = original_count - filtered_count
+      print(
+        "Filtering: {}: Starting entries: {}, Removed: {}, Forwarded: {}"
+        .format(
+          source,
+          original_count,
+          removed_count,
+          filtered_count
+        )
+      )
+    if filtered_total > 0:
       response = requests.post(self.settings['upstream_server']+'/passive', json=filtered)
       print(response.json())
-
